@@ -1,1 +1,3 @@
-dsadsadasdsadsafasfasc
+.idea
+target
+*.imi
