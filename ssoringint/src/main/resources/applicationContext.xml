@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd">
+
+<!--    <import resource="springmvc-servlet.xml" />-->
+
+    <context:component-scan base-package="com.qf" use-default-filters="true">
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <!--四项基本配置-->
+        <property name="driverClassName" value="${jdbc.driverClassName}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!--非必需配置-->
+        <property name="initialSize" value="${jdbc.initialSize}"/>
+        <property name="minIdle" value="${jdbc.minIdle}"/>
+        <property name="maxActive" value="${jdbc.maxActive}"/>
+        <!--连接等待时间-->
+        <property name="maxWait" value="${jdbc.maxWait}"/>
+        <property name="minEvictableIdleTimeMillis" value="${jdbc.minEvictableIdleTimeMillis}"/>
+    </bean>
+
+    <!-- 在Spring中整理MyBatis框架 -->
+    <bean id="sessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+
+        <property name="dataSource" ref="dataSource" />
+        <property name="configLocation" value="classpath:mybatis-config.xml" />
+        <property name="mapperLocations" value="classpath:mapper/*.xml" />
+        <property name="typeAliasesPackage" value="com.qf.pojo" />
+
+        <!-- 配置MyBatis的分页插件：PageHelper分页插件。plugins属性表示给sqlSessionFactory配置外部的插件 -->
+        <property name="plugins">
+            <!-- 给一个数组类型的变量赋值 -->
+            <array>
+                <!-- PageInterceptor: 表示MyBatis分页插件的拦截器类 -->
+                <bean class="com.github.pagehelper.PageInterceptor">
+                    <property name="properties">
+                        <props>
+                            <!-- 页码页号：开启通过页号来查询数据：0～MAX -->
+                            <prop key="reasonable">true</prop>
+                        </props>
+                    </property>
+                </bean>
+            </array>
+        </property>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.qf.mapper" />
+    </bean>
+
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager" >
+        <!-- 配置当前事务管理器，管理连接池 -->
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+    <!-- 通过aop完成事务的控制-->
+    <tx:advice id="advice" transaction-manager="transactionManager">
+        <!-- 配置事务的相关属性-->
+        <tx:attributes>
+            <!--任何方法要是产生异常都会被回滚-->
+            <tx:method name="*" rollback-for="java.lang.Exception"/>
+            <!--find开头的方法都设置为只读取，没有事务的管理操作-->
+            <tx:method name="find*" read-only="true" />
+        </tx:attributes>
+    </tx:advice>
+
+    <!--配置AOP：给事务配置连接点-->
+    <aop:config>
+        <!--配置连接点-->
+        <aop:pointcut id="pc" expression="execution(* com.qf.service.*.*(..))"/>
+        <aop:advisor advice-ref="advice" pointcut-ref="pc" />
+    </aop:config>
+
+</beans>
